@@ -24,7 +24,7 @@ class TadpoleScraper():
                 tadpolesParams = item.strip()[20:-1]
         print(tadpolesParams)
         tadpolesJson = json.loads(tadpolesParams)
-        if(self.startTime == None)
+        if self.startTime == None:
             self.startTime = tadpolesJson['first_event_time']
         self.endTime = tadpolesJson['last_event_time']
         for kid in tadpolesJson['children']:
