@@ -2,28 +2,41 @@ import argparse
 import time
 import sys
 import json
+
 from gatedScraper import GatedScraper
 
-def parentScrape(response):
-    htmlResponse = response.read().decode("utf-8")
-    print(htmlResponse)
-    tmpSplit = htmlResponse.splitlines()
-    tadpolesParams = None
-    for item in tmpSplit:
-        if item.strip().startswith('tadpoles.appParams'):
-            tadpolesParams = item.strip()[20:-1]
-    print(tadpolesParams)
-    tadpolesJson = json.loads(tadpolesParams)
-    startTime = tadpolesJson['first_event_time']
-    endTime = tadpolesJson['last_event_time']
-    children = {}
-    for kid in tadpolesJson['children']:
-        print(kid['display_name'])
-        children[kid['key']] = kid['display_name']
+EVENTS = "https://www.tadpoles.com/remote/v1/events?direction=range&earliest_event_time={start_time}&latest_event_time={end_time}&num_events={num_events}&client=dashboard"
 
-    print("Start Time: " + str(startTime))
-    print("End Time: " + str(endTime))
-    print("For kids: " + json.dumps(children))
+class TadpoleScraper():
+    def __init__(self, cookie, uid, endTime=None):
+        self.startTime = endTime
+        self.endTime = None
+        self.children = {}
+        self.scraper = GatedScraper(cookie=args.cookie, uid=args.uid)
+        self.scraper.add_job('/'.join([BASE_URL, 'parents']), self.parentScrape)
+
+    def parentScrape(response):
+        htmlResponse = response.read().decode("utf-8")
+        tmpSplit = htmlResponse.splitlines()
+        tadpolesParams = None
+        for item in tmpSplit:
+            if item.strip().startswith('tadpoles.appParams'):
+                tadpolesParams = item.strip()[20:-1]
+        print(tadpolesParams)
+        tadpolesJson = json.loads(tadpolesParams)
+        if(self.startTime == None)
+            self.startTime = tadpolesJson['first_event_time']
+        self.endTime = tadpolesJson['last_event_time']
+        for kid in tadpolesJson['children']:
+            self.children[kid['key']] = kid['display_name']
+
+        self.scraper.add_job(EVENTS % { start_time: self.startTime, end_time: self.endTime, num_events: 300 }, self.parseEvents)
+
+    def parseEvents(self, response):
+        txtResponse = response.read().decode("utf-8")
+        jsonResponse = json.loads(txtResponse)
+
+        jsonResponse
 
 BASE_URL = 'https://www.tadpoles.com'
 
