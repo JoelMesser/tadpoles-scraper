@@ -2,6 +2,7 @@ import argparse
 import time
 import sys
 import json
+from datetime import date
 
 from gatedScraper import GatedScraper
 
@@ -11,6 +12,9 @@ class TadpoleScraper():
     def __init__(self, cookie, uid, endTime=None):
         self.startTime = endTime
         self.endTime = None
+
+        self.minTime = 10000000000
+        self.maxTime = 0
 
         self.children = {}
         self.attachments = []
@@ -37,6 +41,8 @@ class TadpoleScraper():
         self.scraper.add_job(EVENTS.format(start_time=self.startTime, end_time=self.endTime, num_events=300), self.parseEvents)
 
     def processAttachments(self):
+        print("Start: " + str(date.fromtimestamp(self.minTime)))
+        print("Stop: " + str(date.fromtimestamp(self.maxTime)))
         print(str(len(self.attachments)) + " attachments to parse")
 
     def parseEvents(self, response):
@@ -47,10 +53,11 @@ class TadpoleScraper():
             self.processAttachments()
             return
 
-
         last_time = 0
         for singleEvent in jsonResponse['events']:
             last_time = max(last_time, singleEvent['create_time'])
+            self.maxTime = max(self.maxTime, singleEvent['create_time'])
+            self.minTime = min(self.minTime, singleEvent['create_time'])
             # if the event has an attachment, push it
             if 'attachments' in singleEvent:
                 for singleAttach in singleEvent['attachments']:
