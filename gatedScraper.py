@@ -28,14 +28,15 @@ class GatedScraper:
         curReq.add_header('cookie', self.cookie)
         curReq.add_header('x-tadpoles-uid', self.uid)
         resp = urllib.request.urlopen(curReq)
-        currentItem['callback'](resp)
+        currentItem['callback'](resp, currentItem['params'])
 
         print("Job complete")
 
-    def add_job(self, url, callback):
+    def add_job(self, url, callback, **params):
         to_append = {}
         to_append['url'] = url
         to_append['callback'] = callback
+        to_append['params'] = params
         self.requests.append(to_append)
 
     def pause(self):

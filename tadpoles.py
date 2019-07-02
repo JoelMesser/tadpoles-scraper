@@ -17,11 +17,11 @@ class TadpoleScraper():
         self.maxTime = 0
 
         self.children = {}
-        self.attachments = []
-        self.scraper = GatedScraper(cookie=args.cookie, uid=args.uid)
+        self.attachments = {}
+        self.scraper = GatedScraper(cookie=args.cookie, uid=args.uid, interval=5)
         self.scraper.add_job('/'.join([BASE_URL, 'parents']), self.parentScrape)
 
-    def parentScrape(self, response):
+    def parentScrape(self, response, otherParams):
         htmlResponse = response.read().decode("utf-8")
         tmpSplit = htmlResponse.splitlines()
         tadpolesParams = None
@@ -38,22 +38,41 @@ class TadpoleScraper():
         for kid in tadpolesJson['children']:
             self.children[kid['key']] = kid['display_name']
 
-        self.scraper.add_job(EVENTS.format(start_time=self.startTime, end_time=self.endTime, num_events=300), self.parseEvents)
+        print("Started at Goddard: " + str(date.fromtimestamp(self.startTime)))
+        print("Last event at Goddard: " + str(date.fromtimestamp(self.endTime)))
+
+        self.addEventJob(self.startTime, self.endTime)
+
+    def addEventJob(self, incStart, incEnd):
+        duration = min(incEnd - incStart, 2592000 * 2)
+        newEnd = min(incStart + duration, incEnd)
+        print("Adding request from : " + str(date.fromtimestamp(incStart)) + " to " + str(date.fromtimestamp(newEnd)))
+        self.scraper.add_job(EVENTS.format(start_time=incStart, end_time=newEnd, num_events=300), self.parseEvents, start_time=incStart, end_time=newEnd)
 
     def processAttachments(self):
         print("Start: " + str(date.fromtimestamp(self.minTime)))
         print("Stop: " + str(date.fromtimestamp(self.maxTime)))
         print(str(len(self.attachments)) + " attachments to parse")
+        def sortMethod(val):
+            return val['create_time']
+        attachVals = self.attachments.values()
+        attachVals.sort(sortMethod)
+        for singleAttach in attachVals:
+            self.scraper.add_job(ATTACHMENT.format(attachment=singleAttach['attachment']), child=singleAttach['child'], create_time=singleAttach['create_time'], comment=singleAttach['comment'])
+            break
 
-    def parseEvents(self, response):
+
+    def parseEvents(self, response, otherParams):
+        print("Parse Events")
         txtResponse = response.read().decode("utf-8")
         jsonResponse = json.loads(txtResponse)
 
-        if len(jsonResponse['events']) == 0:
+        print(otherParams)
+        if otherParams['start_time'] >= otherParams['end_time']:
             self.processAttachments()
             return
-
-        last_time = 0
+        
+        last_time = otherParams['end_time']
         for singleEvent in jsonResponse['events']:
             last_time = max(last_time, singleEvent['create_time'])
             self.maxTime = max(self.maxTime, singleEvent['create_time'])
@@ -66,23 +85,28 @@ class TadpoleScraper():
                     toPush['child'] = singleEvent['parent_member_display']
                     toPush['create_time'] = singleEvent['create_time']
                     toPush['comment'] = None
-                    self.attachments.append(toPush)
+                    self.attachments[singleAttach] = toPush
             
             # If the event has entries, check them
             if 'entries' in singleEvent:
                 for singleEntry in singleEvent['entries']:
                     if 'attachment' in singleEntry:
+                        tmpKey = singleEntry['attachment']['key']
                         toPush = {}
-                        toPush['attachment'] =  singleEntry['attachment']['key'],
-                        toPush['child'] = singleEvent['parent_member_display'],
-                        toPush['create_time'] = singleEvent['create_time'],
+                        toPush['attachment'] = tmpKey
+                        toPush['child'] = singleEvent['parent_member_display']
+                        toPush['create_time'] = singleEvent['create_time']
                         if 'note' in singleEntry:
                             toPush['comment'] = singleEntry['note']
-                        self.attachments.append(toPush) 
+                        self.attachments[tmpKey] = toPush
 
-        self.scraper.add_job(EVENTS.format(start_time=last_time, end_time=self.endTime, num_events=300), self.parseEvents)
-
-                #Push event onto stack.
+        print("Add Another Event")
+        #Push event onto stack.
+        if last_time > self.endTime:
+            self.processAttachments()
+        else:
+            self.addEventJob(last_time, self.endTime)
+                
 
 BASE_URL = 'https://www.tadpoles.com'
 
