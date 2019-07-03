@@ -181,13 +181,10 @@ if __name__ == '__main__':
     if outLoc == None:
         outLoc = os.getcwd()
 
-    if os.access(outLoc, os.W_OK):
-        if not os.path.exists(outLoc):
-            os.makedirs(outLoc)
-    else:
-        print >> sys.stderr, '\nUnable to write to the current directory\n'
-        sys.exit(-1)
-
+    
+    if not os.path.exists(outLoc)
+        os.makedirs(outLoc)
+    
     lastFileLoc = os.path.join(outLoc, LAST_RUN_FILE)
     lastTime = None
     if os.path.exists(lastFileLoc):
