@@ -2,17 +2,25 @@ import argparse
 import time
 import sys
 import json
+import piexif
+import os
+import math
+from progress.bar import Bar
+from PIL import Image
 from datetime import date
+from datetime import datetime
 
 from gatedScraper import GatedScraper
 
+MAX_DURATION = 2592000 * 2
 EVENTS = "https://www.tadpoles.com/remote/v1/events?direction=range&earliest_event_time={start_time}&latest_event_time={end_time}&num_events={num_events}&client=dashboard"
 ATTACHMENT = "https://www.tadpoles.com/remote/v1/obj_attachment?obj={obj}&key={key}"
 
 class TadpoleScraper():
-    def __init__(self, cookie, uid, endTime=None):
-        self.startTime = endTime
+    def __init__(self, cookie, uid, out, lastEndTime=None):
+        self.startTime = 1552086794.0
         self.endTime = None
+        self.outLoc = out
 
         self.minTime = 10000000000
         self.maxTime = 0
@@ -29,50 +37,69 @@ class TadpoleScraper():
         for item in tmpSplit:
             if item.strip().startswith('tadpoles.appParams'):
                 tadpolesParams = item.strip()[20:-1]
-        print(tadpolesParams)
+        
         tadpolesJson = json.loads(tadpolesParams)
         if self.startTime == None:
             self.startTime = tadpolesJson['first_event_time']
 
         self.endTime = tadpolesJson['last_event_time']
-
+        self.eventBar = Bar("Parsing Events", max=math.ceil((self.endTime - self.startTime) / MAX_DURATION))
+        
         for kid in tadpolesJson['children']:
-            self.children[kid['key']] = kid['display_name']
+            kidFirstName = kid['display_name'].split(' ')[0]
+            if not os.path.exists(os.path.join(self.outLoc, kidFirstName)):
+                os.makedirs(os.path.join(self.outLoc, kidFirstName))
+            self.children[kid['key']] = kidFirstName
 
         print("Started at Goddard: " + str(date.fromtimestamp(self.startTime)))
         print("Last event at Goddard: " + str(date.fromtimestamp(self.endTime)))
-
+        
         self.addEventJob(self.startTime, self.endTime)
 
     def addEventJob(self, incStart, incEnd):
-        duration = min(incEnd - incStart, 2592000 * 2)
+        duration = min(incEnd - incStart, MAX_DURATION)
         newEnd = min(incStart + duration, incEnd)
-        print("Adding request from : " + str(date.fromtimestamp(incStart)) + " to " + str(date.fromtimestamp(newEnd)))
         self.scraper.add_job(EVENTS.format(start_time=incStart, end_time=newEnd, num_events=300), self.parseEvents, start_time=incStart, end_time=newEnd)
 
     def processAttachments(self):
-        print("Start: " + str(date.fromtimestamp(self.minTime)))
-        print("Stop: " + str(date.fromtimestamp(self.maxTime)))
-        print(str(len(self.attachments)) + " attachments to parse")
+        self.attachmentsBar = Bar("Downloading Attachments", max=len(self.attachments))
         def sortMethod(val):
             return val['create_time']
-        attachVals = self.attachments.values()
-        attachVals.sort(sortMethod)
+        attachVals = list(self.attachments.values())
+        attachVals.sort(key=sortMethod)
         for singleAttach in attachVals:
             self.scraper.add_job(ATTACHMENT.format(key=singleAttach['attachment'], obj=singleAttach['key']), self.processImage, child=singleAttach['child'], create_time=singleAttach['create_time'], comment=singleAttach['comment'])
             break
+        
 
     def processImage(self, response, otherParams):
         data = response.read()
-        with open("")
+        time = datetime.fromtimestamp(otherParams['create_time'])
+        timeStr = time.strftime("%Y%m%d.%H%M%S")
+        fileStr = "{kid}-{time_str}.jpg".format(kid=otherParams['child'], time_str=timeStr)
+        fileLoc = os.path.join(self.outLoc, otherParams['child'], fileStr)
+
+        with open(fileLoc, "wb") as f:
+            f.write(data)
+            f.close()
+
+        im = Image.open(fileLoc)
+        exif_dict = piexif.load(im.info["exif"])
+        # process im and exif_dict...
+        if otherParams['comment'] != None:
+            exif_dict["0th"][piexif.ImageIFD.ImageDescription] = otherParams['comment']
+        exif_dict["0th"][piexif.ImageIFD.DateTime] = time.strftime("%H:%M:%S %m/%d/%Y")
+        exif_bytes = piexif.dump(exif_dict)
+        im.save(fileLoc, "jpeg", exif=exif_bytes)
+        self.attachmentsBar.next()
 
     def parseEvents(self, response, otherParams):
-        print("Parse Events")
         txtResponse = response.read().decode("utf-8")
         jsonResponse = json.loads(txtResponse)
+        self.eventBar.next()
 
-        print(otherParams)
         if otherParams['start_time'] >= otherParams['end_time']:
+            self.eventBar.finish()
             self.processAttachments()
             return
         
@@ -102,11 +129,12 @@ class TadpoleScraper():
                         toPush['key'] = singleEvent['key']
                         toPush['child'] = singleEvent['parent_member_display']
                         toPush['create_time'] = singleEvent['create_time']
+                        toPush['comment'] = None
                         if 'note' in singleEntry:
                             toPush['comment'] = singleEntry['note']
+                        
                         self.attachments[tmpKey] = toPush
 
-        print("Add Another Event")
         #Push event onto stack.
         if last_time > self.endTime:
             self.processAttachments()
@@ -127,10 +155,22 @@ if __name__ == '__main__':
                    help='The "cookie" header')
     parser.add_argument('--uid', metavar='uid', type=str, required=True,
                    help='The "x-tadpoles-uid" header')
+    parser.add_argument('--out', metavar='out', type=str,
+                    help='The output location')
 
     args = parser.parse_args()
+    outLoc = args.out
+    if outLoc == None:
+        outLoc = os.getcwd()
 
-    scraper = TadpoleScraper(cookie=args.cookie, uid=args.uid)
+    if os.access(outLoc, os.W_OK):
+        if not os.path.exists(outLoc):
+            os.makedirs(outLoc)
+    else:
+        print >> sys.stderr, '\nUnable to write to the current directory\n'
+        sys.exit(-1)
+
+    scraper = TadpoleScraper(cookie=args.cookie, uid=args.uid, out=outLoc, lastEndTime=None)
 
     try:
         main_loop()

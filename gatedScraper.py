@@ -18,19 +18,15 @@ class GatedScraper:
         self.sched.add_job(self.fire_job, 'interval', seconds=interval, jitter=5)
 
     def fire_job(self):
-        print("Checking for jobs")
         if(len(self.requests) == 0):
             return
         
-        print("Working job")
         currentItem = self.requests.pop(0)
         curReq = urllib.request.Request(currentItem['url'])
         curReq.add_header('cookie', self.cookie)
         curReq.add_header('x-tadpoles-uid', self.uid)
         resp = urllib.request.urlopen(curReq)
         currentItem['callback'](resp, currentItem['params'])
-
-        print("Job complete")
 
     def add_job(self, url, callback, **params):
         to_append = {}
