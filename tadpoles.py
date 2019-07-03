@@ -7,6 +7,7 @@ from datetime import date
 from gatedScraper import GatedScraper
 
 EVENTS = "https://www.tadpoles.com/remote/v1/events?direction=range&earliest_event_time={start_time}&latest_event_time={end_time}&num_events={num_events}&client=dashboard"
+ATTACHMENT = "https://www.tadpoles.com/remote/v1/obj_attachment?obj={obj}&key={key}"
 
 class TadpoleScraper():
     def __init__(self, cookie, uid, endTime=None):
@@ -58,9 +59,12 @@ class TadpoleScraper():
         attachVals = self.attachments.values()
         attachVals.sort(sortMethod)
         for singleAttach in attachVals:
-            self.scraper.add_job(ATTACHMENT.format(attachment=singleAttach['attachment']), child=singleAttach['child'], create_time=singleAttach['create_time'], comment=singleAttach['comment'])
+            self.scraper.add_job(ATTACHMENT.format(key=singleAttach['attachment'], obj=singleAttach['key']), self.processImage, child=singleAttach['child'], create_time=singleAttach['create_time'], comment=singleAttach['comment'])
             break
 
+    def processImage(self, response, otherParams):
+        data = response.read()
+        with open("")
 
     def parseEvents(self, response, otherParams):
         print("Parse Events")
@@ -82,6 +86,7 @@ class TadpoleScraper():
                 for singleAttach in singleEvent['attachments']:
                     toPush = {}
                     toPush['attachment'] = singleAttach
+                    toPush['key'] = singleEvent['key']
                     toPush['child'] = singleEvent['parent_member_display']
                     toPush['create_time'] = singleEvent['create_time']
                     toPush['comment'] = None
@@ -94,6 +99,7 @@ class TadpoleScraper():
                         tmpKey = singleEntry['attachment']['key']
                         toPush = {}
                         toPush['attachment'] = tmpKey
+                        toPush['key'] = singleEvent['key']
                         toPush['child'] = singleEvent['parent_member_display']
                         toPush['create_time'] = singleEvent['create_time']
                         if 'note' in singleEntry:
