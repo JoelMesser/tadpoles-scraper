@@ -181,8 +181,7 @@ if __name__ == '__main__':
     if outLoc == None:
         outLoc = os.getcwd()
 
-    
-    if not os.path.exists(outLoc)
+    if not os.path.exists(outLoc):
         os.makedirs(outLoc)
     
     lastFileLoc = os.path.join(outLoc, LAST_RUN_FILE)
