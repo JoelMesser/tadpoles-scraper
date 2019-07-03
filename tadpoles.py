@@ -12,15 +12,17 @@ from datetime import datetime
 
 from gatedScraper import GatedScraper
 
+LAST_RUN_FILE = 'lastRun'
 MAX_DURATION = 2592000 * 2
 EVENTS = "https://www.tadpoles.com/remote/v1/events?direction=range&earliest_event_time={start_time}&latest_event_time={end_time}&num_events={num_events}&client=dashboard"
 ATTACHMENT = "https://www.tadpoles.com/remote/v1/obj_attachment?obj={obj}&key={key}"
 
 class TadpoleScraper():
     def __init__(self, cookie, uid, out, lastEndTime=None):
-        self.startTime = 1552086794.0
+        self.startTime = lastEndTime
         self.endTime = None
         self.outLoc = out
+        self._isFinished = False
 
         self.minTime = 10000000000
         self.maxTime = 0
@@ -29,6 +31,12 @@ class TadpoleScraper():
         self.attachments = {}
         self.scraper = GatedScraper(cookie=args.cookie, uid=args.uid, interval=5)
         self.scraper.add_job('/'.join([BASE_URL, 'parents']), self.parentScrape)
+
+    def writeLastTime(self, lastTime):
+        lastFileLoc = os.path.join(self.outLoc, LAST_RUN_FILE)
+        with open(lastFileLoc, "w") as r:
+            r.write(str(lastTime))
+            r.close()
 
     def parentScrape(self, response, otherParams):
         htmlResponse = response.read().decode("utf-8")
@@ -43,6 +51,10 @@ class TadpoleScraper():
             self.startTime = tadpolesJson['first_event_time']
 
         self.endTime = tadpolesJson['last_event_time']
+        
+        print("Started at Goddard: " + str(date.fromtimestamp(self.startTime)))
+        print("Last event at Goddard: " + str(date.fromtimestamp(self.endTime)))
+        print("")
         self.eventBar = Bar("Parsing Events", max=math.ceil((self.endTime - self.startTime) / MAX_DURATION))
         
         for kid in tadpolesJson['children']:
@@ -51,9 +63,6 @@ class TadpoleScraper():
                 os.makedirs(os.path.join(self.outLoc, kidFirstName))
             self.children[kid['key']] = kidFirstName
 
-        print("Started at Goddard: " + str(date.fromtimestamp(self.startTime)))
-        print("Last event at Goddard: " + str(date.fromtimestamp(self.endTime)))
-        
         self.addEventJob(self.startTime, self.endTime)
 
     def addEventJob(self, incStart, incEnd):
@@ -61,7 +70,16 @@ class TadpoleScraper():
         newEnd = min(incStart + duration, incEnd)
         self.scraper.add_job(EVENTS.format(start_time=incStart, end_time=newEnd, num_events=300), self.parseEvents, start_time=incStart, end_time=newEnd)
 
+    def finish(self, resp, params):
+        self.writeLastTime(self.endTime)
+        self.attachmentsBar.finish()
+        self._isFinished = True
+    
+    def isFinished(self):
+        return self._isFinished
+
     def processAttachments(self):
+        print('')
         self.attachmentsBar = Bar("Downloading Attachments", max=len(self.attachments))
         def sortMethod(val):
             return val['create_time']
@@ -69,8 +87,7 @@ class TadpoleScraper():
         attachVals.sort(key=sortMethod)
         for singleAttach in attachVals:
             self.scraper.add_job(ATTACHMENT.format(key=singleAttach['attachment'], obj=singleAttach['key']), self.processImage, child=singleAttach['child'], create_time=singleAttach['create_time'], comment=singleAttach['comment'])
-            break
-        
+        self.scraper.add_job(None, self.finish)
 
     def processImage(self, response, otherParams):
         data = response.read()
@@ -91,6 +108,7 @@ class TadpoleScraper():
         exif_dict["0th"][piexif.ImageIFD.DateTime] = time.strftime("%H:%M:%S %m/%d/%Y")
         exif_bytes = piexif.dump(exif_dict)
         im.save(fileLoc, "jpeg", exif=exif_bytes)
+        self.writeLastTime(otherParams['create_time'])
         self.attachmentsBar.next()
 
     def parseEvents(self, response, otherParams):
@@ -170,10 +188,15 @@ if __name__ == '__main__':
         print >> sys.stderr, '\nUnable to write to the current directory\n'
         sys.exit(-1)
 
-    scraper = TadpoleScraper(cookie=args.cookie, uid=args.uid, out=outLoc, lastEndTime=None)
+    lastFileLoc = os.path.join(outLoc, LAST_RUN_FILE)
+    lastTime = None
+    if os.path.exists(lastFileLoc):
+        with open(lastFileLoc, "r") as r:
+            lastTime = float(r.read())
+            r.close()
 
-    try:
-        main_loop()
-    except KeyboardInterrupt:
-        print >> sys.stderr, '\nExiting by user request.\n'
-        sys.exit(0)
+    scraper = TadpoleScraper(cookie=args.cookie, uid=args.uid, out=outLoc, lastEndTime=lastTime)
+
+    while not scraper.isFinished():
+        # do your stuff...
+        time.sleep(1.0)

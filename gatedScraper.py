@@ -22,6 +22,11 @@ class GatedScraper:
             return
         
         currentItem = self.requests.pop(0)
+
+        if currentItem['url'] == None:
+            currentItem['callback'](None, currentItem['params'])
+            return
+
         curReq = urllib.request.Request(currentItem['url'])
         curReq.add_header('cookie', self.cookie)
         curReq.add_header('x-tadpoles-uid', self.uid)
