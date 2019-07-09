@@ -32,7 +32,7 @@ class GatedScraper:
         curReq.add_header('cookie', self.cookie)
         curReq.add_header('x-tadpoles-uid', self.uid)
         resp = urllib.request.urlopen(curReq)
-        if(resp.getcode() >= 300):
+        if(resp.getcode() >= 500):
             self.requests.insert(0, currentItem)
             self.sched.pause()
             time.sleep(10)
