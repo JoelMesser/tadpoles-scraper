@@ -92,12 +92,12 @@ class TadpoleScraper():
         attachVals.sort(key=sortMethod)
         for singleAttach in attachVals:
             callback = self.processImage
-            if(singleAttach['mime_type'] == 'video/mp4')
+            if(singleAttach['mime_type'] == 'video/mp4'):
                 callback = self.processVideo
-            self.scraper.add_job(ATTACHMENT.format(key=singleAttach['attachment'], obj=singleAttach['key']), self.processImage, child=singleAttach['child'], create_time=singleAttach['create_time'], comment=singleAttach['comment'])
+            self.scraper.add_job(ATTACHMENT.format(key=singleAttach['attachment'], obj=singleAttach['key']), callback, child=singleAttach['child'], create_time=singleAttach['create_time'], comment=singleAttach['comment'])
         self.scraper.add_job(None, self.finish)
 
-    def processVideo(self, response, otherParams)
+    def processVideo(self, response, otherParams):
         data = response.read()
         time = datetime.fromtimestamp(otherParams['create_time'])
         timeStr = time.strftime("%Y%m%d.%H%M%S")
@@ -158,7 +158,7 @@ class TadpoleScraper():
                     toPush['create_time'] = singleEvent['create_time']
                     toPush['mimeType'] = singleAttach['mime_type']
                     toPush['comment'] = None
-                    self.attachments[singleAttach] = toPush
+                    self.attachments[singleAttach['key']] = toPush
             
             # If the event has entries, check them
             if 'entries' in singleEvent:
