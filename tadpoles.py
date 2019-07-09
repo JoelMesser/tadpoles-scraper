@@ -156,7 +156,7 @@ class TadpoleScraper():
                     toPush['key'] = singleEvent['key']
                     toPush['child'] = singleEvent['parent_member_display']
                     toPush['create_time'] = singleEvent['create_time']
-                    toPush['mimeType'] = singleAttach['mime_type']
+                    toPush['mime_type'] = singleAttach['mime_type']
                     toPush['comment'] = None
                     self.attachments[singleAttach['key']] = toPush
             
@@ -170,7 +170,7 @@ class TadpoleScraper():
                         toPush['key'] = singleEvent['key']
                         toPush['child'] = singleEvent['parent_member_display']
                         toPush['create_time'] = singleEvent['create_time']
-                        toPush['mimeType'] = singleEntry['attachment']['mime_type']
+                        toPush['mime_type'] = singleEntry['attachment']['mime_type']
                         toPush['comment'] = None
                         if 'note' in singleEntry:
                             toPush['comment'] = singleEntry['note']
