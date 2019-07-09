@@ -5,6 +5,7 @@ import json
 import piexif
 import os
 import math
+import logging
 from progress.bar import Bar
 from PIL import Image
 from datetime import date
@@ -16,6 +17,10 @@ LAST_RUN_FILE = 'lastRun'
 MAX_DURATION = 2592000 * 2
 EVENTS = "https://www.tadpoles.com/remote/v1/events?direction=range&earliest_event_time={start_time}&latest_event_time={end_time}&num_events={num_events}&client=dashboard"
 ATTACHMENT = "https://www.tadpoles.com/remote/v1/obj_attachment?obj={obj}&key={key}"
+
+logging.getLogger('apscheduler.scheduler').setLevel(logging.CRITICAL)
+logging.getLogger('apscheduler.scheduler').propagate = False
+
 
 class TadpoleScraper():
     def __init__(self, cookie, uid, out, lastEndTime=None):
@@ -86,8 +91,25 @@ class TadpoleScraper():
         attachVals = list(self.attachments.values())
         attachVals.sort(key=sortMethod)
         for singleAttach in attachVals:
+            callback = self.processImage
+            if(singleAttach['mime_type'] == 'video/mp4')
+                callback = self.processVideo
             self.scraper.add_job(ATTACHMENT.format(key=singleAttach['attachment'], obj=singleAttach['key']), self.processImage, child=singleAttach['child'], create_time=singleAttach['create_time'], comment=singleAttach['comment'])
         self.scraper.add_job(None, self.finish)
+
+    def processVideo(self, response, otherParams)
+        data = response.read()
+        time = datetime.fromtimestamp(otherParams['create_time'])
+        timeStr = time.strftime("%Y%m%d.%H%M%S")
+        fileStr = "{kid}-{time_str}.mp4".format(kid=otherParams['child'], time_str=timeStr)
+        fileLoc = os.path.join(self.outLoc, otherParams['child'], fileStr)
+
+        with open(fileLoc, "wb") as f:
+            f.write(data)
+            f.close()
+        
+        self.writeLastTime(otherParams['create_time'])
+        self.attachmentsBar.next()
 
     def processImage(self, response, otherParams):
         data = response.read()
@@ -127,13 +149,14 @@ class TadpoleScraper():
             self.maxTime = max(self.maxTime, singleEvent['create_time'])
             self.minTime = min(self.minTime, singleEvent['create_time'])
             # if the event has an attachment, push it
-            if 'attachments' in singleEvent:
-                for singleAttach in singleEvent['attachments']:
+            if 'new_attachments' in singleEvent:
+                for singleAttach in singleEvent['new_attachments']:
                     toPush = {}
-                    toPush['attachment'] = singleAttach
+                    toPush['attachment'] = singleAttach['key']
                     toPush['key'] = singleEvent['key']
                     toPush['child'] = singleEvent['parent_member_display']
                     toPush['create_time'] = singleEvent['create_time']
+                    toPush['mimeType'] = singleAttach['mime_type']
                     toPush['comment'] = None
                     self.attachments[singleAttach] = toPush
             
@@ -147,6 +170,7 @@ class TadpoleScraper():
                         toPush['key'] = singleEvent['key']
                         toPush['child'] = singleEvent['parent_member_display']
                         toPush['create_time'] = singleEvent['create_time']
+                        toPush['mimeType'] = singleEntry['attachment']['mime_type']
                         toPush['comment'] = None
                         if 'note' in singleEntry:
                             toPush['comment'] = singleEntry['note']
@@ -184,6 +208,8 @@ if __name__ == '__main__':
     if not os.path.exists(outLoc):
         os.makedirs(outLoc)
     
+    print("Starting up, grabbing initial parameters.")
+
     lastFileLoc = os.path.join(outLoc, LAST_RUN_FILE)
     lastTime = None
     if os.path.exists(lastFileLoc):
