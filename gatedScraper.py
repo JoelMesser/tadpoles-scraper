@@ -1,5 +1,6 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 import urllib.request
+import time
 
 class GatedScraper:
     def __init__(self, cookie, uid, interval=15):
@@ -31,7 +32,13 @@ class GatedScraper:
         curReq.add_header('cookie', self.cookie)
         curReq.add_header('x-tadpoles-uid', self.uid)
         resp = urllib.request.urlopen(curReq)
-        currentItem['callback'](resp, currentItem['params'])
+        if(resp.getcode() >= 300):
+            self.requests.insert(0, currentItem)
+            self.sched.pause()
+            time.sleep(10)
+            self.sched.resume()
+        else:
+            currentItem['callback'](resp, currentItem['params'])
 
     def add_job(self, url, callback, **params):
         to_append = {}
