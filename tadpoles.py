@@ -57,10 +57,13 @@ class TadpoleScraper():
 
         self.endTime = tadpolesJson['last_event_time']
         
-        print("Started at Goddard: " + str(date.fromtimestamp(self.startTime)))
+        print("Last Downloaded: " + str(date.fromtimestamp(self.startTime)))
         print("Last event at Goddard: " + str(date.fromtimestamp(self.endTime)))
-        print("")
-        self.eventBar = Bar("Parsing Events", max=math.ceil((self.endTime - self.startTime) / MAX_DURATION))
+        total_events = math.ceil((self.endTime - self.startTime) / MAX_DURATION)
+        if(total_events == 0)
+            return
+            
+        self.eventBar = Bar("Parsing Events", max=total_events)
         
         for kid in tadpolesJson['children']:
             kidFirstName = kid['display_name'].split(' ')[0]
