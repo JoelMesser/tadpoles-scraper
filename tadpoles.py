@@ -34,6 +34,10 @@ class TadpoleScraper():
 
         self.children = {}
         self.attachments = {}
+
+        self.attachmentsBar = None
+        self.eventBar = None
+
         self.scraper = GatedScraper(cookie=args.cookie, uid=args.uid, interval=5)
         self.scraper.add_job('/'.join([BASE_URL, 'parents']), self.parentScrape)
 
