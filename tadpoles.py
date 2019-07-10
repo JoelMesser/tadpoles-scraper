@@ -66,12 +66,13 @@ class TadpoleScraper():
 
         total_events = math.ceil((self.endTime - self.startTime) / MAX_DURATION)
         if(total_events == 0):
+            print("No images / videos to download")
             self.finish(None, None)
             return
 
         print("Total Events: " + total_events)
 
-        self.eventBar = Bar("Parsing Events", max=total_events)
+        self.eventBar = Bar("Parsing Events", max=total_events, suffix='%(index)d/%(max)d - %(eta)d seconds remaining')
         
         for kid in tadpolesJson['children']:
             kidFirstName = kid['display_name'].split(' ')[0]
@@ -97,7 +98,7 @@ class TadpoleScraper():
 
     def processAttachments(self):
         print('')
-        self.attachmentsBar = Bar("Downloading Attachments", max=len(self.attachments))
+        self.attachmentsBar = Bar("Downloading Attachments", max=len(self.attachments), suffix='%(index)d/%(max)d - %(eta)d seconds remaining')
         def sortMethod(val):
             return val['create_time']
         attachVals = list(self.attachments.values())
