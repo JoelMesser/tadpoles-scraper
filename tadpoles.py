@@ -61,7 +61,7 @@ class TadpoleScraper():
         print("Last event at Goddard: " + str(date.fromtimestamp(self.endTime)))
 
         total_events = math.ceil((self.endTime - self.startTime) / MAX_DURATION)
-        if(total_events == 0)
+        if(total_events == 0):
             self.finish(None, None)
             return
 
