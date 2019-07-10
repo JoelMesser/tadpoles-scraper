@@ -23,7 +23,7 @@ logging.getLogger('apscheduler.scheduler').propagate = False
 
 
 class TadpoleScraper():
-    def __init__(self, cookie, uid, out, lastEndTime=None, interval):
+    def __init__(self, cookie, uid, out, interval, lastEndTime=None):
         self.startTime = lastEndTime
         self.endTime = None
         self.outLoc = out
@@ -237,7 +237,7 @@ if __name__ == '__main__':
             lastTime = float(r.read())
             r.close()
 
-    scraper = TadpoleScraper(cookie=args.cookie, uid=args.uid, out=outLoc, lastEndTime=lastTime, interval=args.interval)
+    scraper = TadpoleScraper(cookie=args.cookie, uid=args.uid, out=outLoc, interval=args.interval, lastEndTime=lastTime)
 
     while not scraper.isFinished():
         # do your stuff...
