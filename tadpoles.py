@@ -23,7 +23,7 @@ logging.getLogger('apscheduler.scheduler').propagate = False
 
 
 class TadpoleScraper():
-    def __init__(self, cookie, uid, out, lastEndTime=None):
+    def __init__(self, cookie, uid, out, lastEndTime=None, interval):
         self.startTime = lastEndTime
         self.endTime = None
         self.outLoc = out
@@ -38,7 +38,7 @@ class TadpoleScraper():
         self.attachmentsBar = None
         self.eventBar = None
 
-        self.scraper = GatedScraper(cookie=args.cookie, uid=args.uid, interval=5)
+        self.scraper = GatedScraper(cookie=args.cookie, uid=args.uid, interval=interval)
         self.scraper.add_job('/'.join([BASE_URL, 'parents']), self.parentScrape)
 
     def writeLastTime(self, lastTime):
@@ -69,8 +69,6 @@ class TadpoleScraper():
             print("No images / videos to download")
             self.finish(None, None)
             return
-
-        print("Total Events: " + total_events)
 
         self.eventBar = Bar("Parsing Events", max=total_events, suffix='%(index)d/%(max)d - %(eta)d seconds remaining')
         
@@ -219,6 +217,8 @@ if __name__ == '__main__':
                    help='The "x-tadpoles-uid" header')
     parser.add_argument('--out', metavar='out', type=str,
                     help='The output location')
+    parser.add_argument('--interval', metavar='interval', type=int, default=5
+                    help='Time between requests')
 
     args = parser.parse_args()
     outLoc = args.out
@@ -237,7 +237,7 @@ if __name__ == '__main__':
             lastTime = float(r.read())
             r.close()
 
-    scraper = TadpoleScraper(cookie=args.cookie, uid=args.uid, out=outLoc, lastEndTime=lastTime)
+    scraper = TadpoleScraper(cookie=args.cookie, uid=args.uid, out=outLoc, lastEndTime=lastTime, interval=args.interval)
 
     while not scraper.isFinished():
         # do your stuff...
