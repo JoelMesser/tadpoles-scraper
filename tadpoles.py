@@ -84,7 +84,7 @@ class TadpoleScraper():
 
     def finish(self, resp, params):
         self.writeLastTime(self.endTime)
-        if(self.attachmentsBar != None)
+        if(self.attachmentsBar != None):
             self.attachmentsBar.finish()
         self._isFinished = True
     
