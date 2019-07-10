@@ -62,6 +62,7 @@ class TadpoleScraper():
 
         total_events = math.ceil((self.endTime - self.startTime) / MAX_DURATION)
         if(total_events == 0)
+            self.finish(None, None)
             return
 
         print("Total Events: " + total_events)
@@ -83,7 +84,8 @@ class TadpoleScraper():
 
     def finish(self, resp, params):
         self.writeLastTime(self.endTime)
-        self.attachmentsBar.finish()
+        if(self.attachmentsBar != None)
+            self.attachmentsBar.finish()
         self._isFinished = True
     
     def isFinished(self):
