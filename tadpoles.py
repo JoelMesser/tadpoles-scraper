@@ -217,7 +217,7 @@ if __name__ == '__main__':
                    help='The "x-tadpoles-uid" header')
     parser.add_argument('--out', metavar='out', type=str,
                     help='The output location')
-    parser.add_argument('--interval', metavar='interval', type=int, default=5
+    parser.add_argument('--interval', metavar='interval', type=int, default=5,
                     help='Time between requests')
 
     args = parser.parse_args()
