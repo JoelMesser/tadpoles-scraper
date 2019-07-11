@@ -135,13 +135,14 @@ class TadpoleScraper():
 
         try:
             im = Image.open(fileLoc)
-            exif_dict = piexif.load(im.info["exif"])
-            # process im and exif_dict...
-            if otherParams['comment'] != None:
-                exif_dict["0th"][piexif.ImageIFD.ImageDescription] = otherParams['comment'].encode("utf8")
-            exif_dict["0th"][piexif.ImageIFD.DateTime] = time.strftime("%H:%M:%S %m/%d/%Y")
-            exif_bytes = piexif.dump(exif_dict)
-            im.save(fileLoc, "jpeg", exif=exif_bytes)
+            if "exif" in im.info:
+                exif_dict = piexif.load(im.info["exif"])
+                # process im and exif_dict...
+                if otherParams['comment'] != None:
+                    exif_dict["0th"][piexif.ImageIFD.ImageDescription] = otherParams['comment'].encode("utf8")
+                exif_dict["0th"][piexif.ImageIFD.DateTime] = time.strftime("%H:%M:%S %m/%d/%Y")
+                exif_bytes = piexif.dump(exif_dict)
+                im.save(fileLoc, "jpeg", exif=exif_bytes)
         except Exception as e:
             print("Error " + e)
             print("Error Details: " + otherParams)
